@@ -125,7 +125,11 @@ class RemoteSftpFileAccess @Inject constructor(
         val b64 = java.util.Base64.getEncoder().encodeToString(content.toByteArray(Charsets.UTF_8))
         val redirect = if (overwrite) ">" else ">>"
         val exit = execExitCode("printf %s ${shellQuote(b64)} | base64 -d $redirect ${shellQuote(remote)}")
-        if (exit != 0) FileLogger.w(TAG, "writeFile 退出码=$exit: $remote")
+        // 与 deleteRecursively/rename 一致：写入失败必须抛出，否则调用方（编辑器保存）会把失败当成功展示给用户
+        if (exit != 0) {
+            FileLogger.w(TAG, "writeFile 退出码=$exit: $remote")
+            throw IOException("write 远程命令退出码=$exit: $remote")
+        }
     }
 
     override fun exists(path: String): Boolean {
