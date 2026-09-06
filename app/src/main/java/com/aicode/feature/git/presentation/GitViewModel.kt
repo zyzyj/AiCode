@@ -315,6 +315,18 @@ class GitViewModel @Inject constructor(
         }
         runAction(R.string.git_pull, { repository.pull() })
     }
+
+    /**
+     * 仅刷新远端引用（git fetch --all），不改工作区。用于 BRANCHES 页：拉取远端最新的
+     * 分支列表与 ahead/behind，供用户判断是否需要拉取，不产生合并。
+     */
+    fun fetchRemote() {
+        if (!_state.value.hasRemote) {
+            _state.update { it.copy(toast = context.getString(R.string.git_toast_no_remote_pull)) }
+            return
+        }
+        runAction(R.string.git_fetch_remote, { repository.fetchAll() })
+    }
     fun push() {
         if (!_state.value.hasRemote) {
             _state.update { it.copy(toast = context.getString(R.string.git_toast_no_remote_push)) }

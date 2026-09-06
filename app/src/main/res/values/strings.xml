@@ -602,6 +602,7 @@
     <string name="git_stage_all">暂存全部</string>
     <string name="git_pull">拉取</string>
     <string name="git_push">推送</string>
+    <string name="git_fetch_remote">从远端刷新（fetch）</string>
     <string name="git_loading_branches">正在加载分支列表…</string>
     <string name="git_no_branches">暂无分支</string>
     <string name="git_no_checked_out_branch">未检出分支</string>

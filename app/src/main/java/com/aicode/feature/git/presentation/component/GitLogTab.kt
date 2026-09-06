@@ -175,10 +175,16 @@ internal fun LogTab(
                             if (graphLoadingMore) {
                                 CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                             } else {
+                                // 可点击主动加载：分页失败（如快照过期）后用户点这里即可重试，
+                                // 不必依赖滚动位置变化触发 LaunchedEffect(shouldLoadMore)。
                                 Text(
                                     stringResource(R.string.git_load_more_commits),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable(onClick = onLoadMore),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
                             }
                         } else {

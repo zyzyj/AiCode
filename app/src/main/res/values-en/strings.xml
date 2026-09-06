@@ -602,6 +602,7 @@
     <string name="git_stage_all">Stage All</string>
     <string name="git_pull">Pull</string>
     <string name="git_push">Push</string>
+    <string name="git_fetch_remote">Refresh from remote (fetch)</string>
     <string name="git_loading_branches">Loading branch list…</string>
     <string name="git_no_branches">No branches</string>
     <string name="git_no_checked_out_branch">No branch checked out</string>

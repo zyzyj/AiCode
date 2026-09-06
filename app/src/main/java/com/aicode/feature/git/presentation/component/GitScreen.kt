@@ -208,6 +208,7 @@ fun GitScreen(
                             checkoutLoading = state.checkoutLoading,
                             listState = branchesListState,
                             onLoadBranches = viewModel::loadBranches,
+                            onFetch = viewModel::fetchRemote,
                             onCheckout = viewModel::checkoutBranch,
                             onCreateBranch = viewModel::createBranch,
                             onDeleteBranch = viewModel::deleteBranch,

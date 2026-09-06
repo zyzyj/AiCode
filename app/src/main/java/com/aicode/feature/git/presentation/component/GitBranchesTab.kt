@@ -86,6 +86,7 @@ internal fun BranchesTab(
     checkoutLoading: String?,
     listState: LazyListState,
     onLoadBranches: () -> Unit = {},
+    onFetch: () -> Unit = {},
     onCheckout: (String, Boolean) -> Unit,
     onCreateBranch: (String, String?, Boolean) -> Unit,
     onDeleteBranch: (String) -> Unit,
@@ -395,6 +396,19 @@ internal fun BranchesTab(
                         icon = FeatherIcons.GitCommit,
                         isCurrent = true
                     )
+                    // 从远端同步最新引用（git fetch --all）：远程分支列表与 ahead/behind 在此之前
+                    // 是上次网络操作的快照，看不到远端新提交/新分支。
+                    TextButton(
+                        onClick = onFetch,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(FeatherIcons.Cloud, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Spacer(Modifier.width(Spacing.xs))
+                        Text(
+                            stringResource(R.string.git_fetch_remote),
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
                 }
             }
         }

@@ -160,7 +160,9 @@ internal fun StatusTab(
         StatusOverview(status = s, clean = clean)
 
         // 主操作：提交。有已暂存改动且已配置署名才可用。
-        val commitEnabled = !busy && (s?.staged?.isNotEmpty() == true) && hasIdentity
+        // detached HEAD（切到标签后）下提交会悬空——不属于任何分支，切走即丢失，故一并禁用。
+        val isDetached = s?.isDetached == true
+        val commitEnabled = !busy && !isDetached && (s?.staged?.isNotEmpty() == true) && hasIdentity
         FilledTonalButton(
             onClick = onCommit,
             enabled = commitEnabled,
@@ -194,6 +196,15 @@ internal fun StatusTab(
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
+        } else if (isDetached) {
+            // detached HEAD 下提交按钮被禁用的原因提示
+            Text(
+                text = stringResource(R.string.git_detached_head_label),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
         }
 
         // 次级操作：暂存全部 / 拉取 / 推送。
@@ -211,14 +222,14 @@ internal fun StatusTab(
             ActionButton(
                 label = stringResource(R.string.git_pull),
                 icon = FeatherIcons.DownloadCloud,
-                enabled = !busy && hasRemote,
+                enabled = !busy && hasRemote && !isDetached,
                 onClick = onPull,
                 modifier = Modifier.weight(1f)
             )
             ActionButton(
                 label = stringResource(R.string.git_push),
                 icon = FeatherIcons.UploadCloud,
-                enabled = !busy && hasRemote,
+                enabled = !busy && hasRemote && !isDetached,
                 onClick = onPush,
                 modifier = Modifier.weight(1f)
             )
