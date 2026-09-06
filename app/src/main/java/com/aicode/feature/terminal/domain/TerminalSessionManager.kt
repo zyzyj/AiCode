@@ -15,6 +15,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -319,23 +320,29 @@ class TerminalSessionManager @Inject constructor(
                 } else {
                     delay(EXIT_MARKER_GRACE_MS)
                     // 缓冲后再查：正常 onFinished 回调若已触发，状态不再 Running，此处直接退出。
-                    val current = tab(tabId) ?: return@launch
-                    if (current.runState is RunState.Running) {
-                        val exitCode = extractExitCode(getTabOutput(tabId) ?: "") ?: 0
-                        current.runState = RunState.Finished(exitCode)
-                        bumpRevision()
-                        FileLogger.i(TAG, "兜底：标签 $tabId 检测到退出标记，强制收尾 exit=$exitCode")
-                        if (current.isBackground && _tabs.value.none { it.isBackground && it.runState is RunState.Running }) {
-                            stopKeepaliveService()
-                        }
-                        if (current.notifyOnExit && !current.finishedNotified) {
-                            current.finishedNotified = true
-                            _tabFinishedEvents.tryEmit(
-                                TabFinishedEvent(
-                                    current.id, current.title, current.command, exitCode, current.sourceSessionId,
-                                    tailOutput = getTabOutput(current.id)?.takeTailLines(TAIL_LINES)
+                    // 本监控跑在 Dispatchers.IO，按类约定 runState/finishedNotified 只在主线程读写，
+                    // 收尾段整体切主线程，避免与 onFinished 回调并发写同一字段（双通知/丢退出码）。
+                    val stillRunning = tab(tabId)?.runState is RunState.Running
+                    if (!stillRunning) return@launch
+                    withContext(Dispatchers.Main) {
+                        val current = tab(tabId) ?: return@withContext
+                        if (current.runState is RunState.Running) {
+                            val exitCode = extractExitCode(getTabOutput(tabId) ?: "") ?: 0
+                            current.runState = RunState.Finished(exitCode)
+                            bumpRevision()
+                            FileLogger.i(TAG, "兜底：标签 $tabId 检测到退出标记，强制收尾 exit=$exitCode")
+                            if (current.isBackground && _tabs.value.none { it.isBackground && it.runState is RunState.Running }) {
+                                stopKeepaliveService()
+                            }
+                            if (current.notifyOnExit && !current.finishedNotified) {
+                                current.finishedNotified = true
+                                _tabFinishedEvents.tryEmit(
+                                    TabFinishedEvent(
+                                        current.id, current.title, current.command, exitCode, current.sourceSessionId,
+                                        tailOutput = getTabOutput(current.id)?.takeTailLines(TAIL_LINES)
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
                     return@launch
@@ -408,15 +415,19 @@ class TerminalSessionManager @Inject constructor(
         val intent = Intent(appContext, TerminalKeepaliveService::class.java).apply {
             action = TerminalKeepaliveService.ACTION_START_SESSION
         }
-        appContext.startService(intent)
-        FileLogger.i(TAG, "后台保活 Service 已启动")
+        // Android 8+（minSdk=26）应用退后台时 startService 抛 IllegalStateException；
+        // AI 可在后台触发命令链路（对齐 TerminalKeepaliveService 内部的 runCatching 防护），失败仅记录不炸调用方。
+        runCatching { appContext.startService(intent) }
+            .onFailure { FileLogger.w(TAG, "后台保活 Service 启动失败（可能受后台启动限制）", it) }
+            .onSuccess { FileLogger.i(TAG, "后台保活 Service 已启动") }
     }
 
     private fun stopKeepaliveService() {
         val intent = Intent(appContext, TerminalKeepaliveService::class.java).apply {
             action = TerminalKeepaliveService.ACTION_STOP_SESSION
         }
-        appContext.startService(intent)
-        FileLogger.i(TAG, "后台保活 Service 已停止")
+        runCatching { appContext.startService(intent) }
+            .onFailure { FileLogger.w(TAG, "后台保活 Service 停止失败（可能受后台启动限制）", it) }
+            .onSuccess { FileLogger.i(TAG, "后台保活 Service 已停止") }
     }
 }
