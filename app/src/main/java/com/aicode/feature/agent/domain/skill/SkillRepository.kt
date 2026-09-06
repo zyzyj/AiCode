@@ -140,7 +140,10 @@ class SkillRepository @Inject constructor(
                 it.isFile && (it.name.equals("SKILL.md", ignoreCase = true) || it.name.equals("CLAUDE.md", ignoreCase = true))
             } ?: false
             if (!hasInstruction) return false
-            return dir.deleteRecursively()
+            // 不用 File.deleteRecursively()：其内部走 NIO SecureDirectoryStream（openat/unlinkat 相对 fd 系统调用族），
+            // proot 容器的 ptrace 翻译对此模拟不完整，会稳定失败（issue #8）。
+            // walkBottomUp + 逐文件 delete 走绝对路径 unlink，proot 支持良好，普通环境行为一致。
+            return dir.walkBottomUp().all { it.delete() } && !dir.exists()
         }
     }
 }
